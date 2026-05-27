@@ -1,0 +1,13 @@
+{
+  "slug": "openai-docs",
+  "name": "openai-docs",
+  "title": "OpenAI Docs",
+  "description": "Use official OpenAI documentation and latest guidance when building with OpenAI APIs and products.",
+  "summary": "Seeded local sample skill focused on docs lookup and model guidance.",
+  "author": "OpenAI Codex",
+  "version": "seed-1",
+  "tags": ["docs", "api", "openai"],
+  "featured": true,
+  "entryFile": "SKILL.md",
+  "sourcePath": "C:/Users/Charming/.codex/skills/.system/openai-docs"
+}
