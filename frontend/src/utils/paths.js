@@ -225,6 +225,12 @@ export default {
     trending: () => {
       return `/settings/community-hub/trending`;
     },
+    skills: () => {
+      return `/settings/community-hub/skills`;
+    },
+    skillDetail: (slug) => {
+      return `/settings/community-hub/skills/${slug}`;
+    },
     authentication: () => {
       return `/settings/community-hub/authentication`;
     },

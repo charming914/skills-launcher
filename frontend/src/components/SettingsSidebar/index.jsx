@@ -331,10 +331,16 @@ const SidebarOptions = ({ user = null, t }) => (
               flex: true,
               roles: ["admin"],
             },
-            {
-              btnText: t("settings.community-hub.your-account"),
-              href: paths.communityHub.authentication(),
-              flex: true,
+              {
+                btnText: "SKILL Store",
+                href: paths.communityHub.skills(),
+                flex: true,
+                roles: ["admin"],
+              },
+              {
+                btnText: t("settings.community-hub.your-account"),
+                href: paths.communityHub.authentication(),
+                flex: true,
               roles: ["admin"],
             },
             {
