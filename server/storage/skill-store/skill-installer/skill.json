@@ -5,9 +5,12 @@
   "description": "Install Codex skills from curated sources or repositories into a local skills directory.",
   "summary": "Seeded local sample skill for testing multiple cards and a second detail layout.",
   "author": "OpenAI Codex",
+  "authorUrl": "https://openai.com",
   "version": "seed-1",
   "tags": ["skills", "installer", "tooling"],
   "featured": false,
+  "updatedAt": "2026-05-27T12:30:00.000Z",
+  "coverImage": "cover.svg",
   "entryFile": "SKILL.md",
   "sourcePath": "C:/Users/Charming/.codex/skills/.system/skill-installer"
 }

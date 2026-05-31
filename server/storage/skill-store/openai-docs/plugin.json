@@ -1,0 +1,21 @@
+{
+  "hubId": "openai-docs",
+  "name": "openai-docs",
+  "active": false,
+  "description": "Use official OpenAI documentation and latest guidance when building with OpenAI APIs and products.",
+  "setup_args": {},
+  "entrypoint": {
+    "params": {
+      "question": {
+        "type": "string",
+        "description": "The docs question or API implementation topic."
+      }
+    }
+  },
+  "examples": [
+    {
+      "prompt": "Explain how to pick the latest model",
+      "call": "{\"question\":\"Explain how to pick the latest model\"}"
+    }
+  ]
+}

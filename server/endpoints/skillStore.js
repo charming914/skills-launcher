@@ -1,9 +1,38 @@
+const fs = require("fs");
+const path = require("path");
+const multer = require("multer");
+const { v4: uuidv4 } = require("uuid");
 const { SkillStore } = require("../models/skillStore");
 const { validatedRequest } = require("../utils/middleware/validatedRequest");
 const {
   flexUserRoleValid,
   ROLES,
 } = require("../utils/middleware/multiUserProtected");
+const { reqBody } = require("../utils/http");
+
+const skillUploadStorage = multer.diskStorage({
+  destination: function (_, __, cb) {
+    fs.mkdirSync(SkillStore.uploadRoot, { recursive: true });
+    cb(null, SkillStore.uploadRoot);
+  },
+  filename: function (_, file, cb) {
+    cb(null, `${uuidv4()}${path.extname(file.originalname || ".zip")}`);
+  },
+});
+
+function handleSkillZipUpload(request, response, next) {
+  const upload = multer({ storage: skillUploadStorage }).single("file");
+  upload(request, response, function (err) {
+    if (err) {
+      response.status(500).json({
+        success: false,
+        error: `Invalid skill upload. ${err.message}`,
+      });
+      return;
+    }
+    next();
+  });
+}
 
 function skillStoreEndpoints(app) {
   if (!app) return;
@@ -52,6 +81,106 @@ function skillStoreEndpoints(app) {
         response.status(500).json({
           success: false,
           skill: null,
+          error: error.message,
+        });
+      }
+    }
+  );
+
+  app.get(
+    "/skills/store/:slug/assets/:filename",
+    [validatedRequest, flexUserRoleValid([ROLES.admin])],
+    async (request, response) => {
+      try {
+        const filepath = path.resolve(
+          SkillStore.root,
+          String(request.params.slug || ""),
+          String(request.params.filename || "")
+        );
+
+        if (!filepath.startsWith(SkillStore.root) || !fs.existsSync(filepath)) {
+          response.sendStatus(404);
+          return;
+        }
+
+        response.sendFile(filepath);
+      } catch (error) {
+        console.error(error);
+        response.sendStatus(500);
+      }
+    }
+  );
+
+  app.post(
+    "/skills/store/upload",
+    [validatedRequest, flexUserRoleValid([ROLES.admin]), handleSkillZipUpload],
+    async (request, response) => {
+      try {
+        if (!request.file) {
+          response.status(400).json({
+            success: false,
+            error: "No skill zip uploaded.",
+          });
+          return;
+        }
+
+        const result = SkillStore.ingestZipUpload(request.file);
+        if (!result.success) {
+          response.status(400).json(result);
+          return;
+        }
+
+        response.status(200).json(result);
+      } catch (error) {
+        console.error(error);
+        response.status(500).json({
+          success: false,
+          error: error.message,
+        });
+      }
+    }
+  );
+
+  app.post(
+    "/skills/store/agent-handoff",
+    [validatedRequest, flexUserRoleValid([ROLES.admin])],
+    async (request, response) => {
+      try {
+        const { slug } = reqBody(request);
+        const result = SkillStore.handoffToAgentImporter(String(slug || ""));
+        if (!result.success) {
+          response.status(400).json(result);
+          return;
+        }
+
+        response.status(200).json(result);
+      } catch (error) {
+        console.error(error);
+        response.status(500).json({
+          success: false,
+          error: error.message,
+        });
+      }
+    }
+  );
+
+  app.post(
+    "/skills/store/install",
+    [validatedRequest, flexUserRoleValid([ROLES.admin])],
+    async (request, response) => {
+      try {
+        const { slug } = reqBody(request);
+        const result = SkillStore.install(String(slug || ""));
+        if (!result.success) {
+          response.status(400).json(result);
+          return;
+        }
+
+        response.status(200).json(result);
+      } catch (error) {
+        console.error(error);
+        response.status(500).json({
+          success: false,
           error: error.message,
         });
       }

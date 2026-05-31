@@ -7,7 +7,15 @@ import SkillStore from "@/models/skillStore";
 import paths from "@/utils/paths";
 import renderMarkdown from "@/utils/chat/markdown";
 import { setEventDelegatorForCodeSnippets } from "@/components/WorkspaceChat";
-import { ArrowLeft, FileText } from "@phosphor-icons/react";
+import showToast from "@/utils/toast";
+import {
+  ArrowLeft,
+  ArrowsClockwise,
+  CircleNotch,
+  DownloadSimple,
+  FileText,
+  WarningCircle,
+} from "@phosphor-icons/react";
 
 function MetadataRow({ label, value }) {
   return (
@@ -20,26 +28,59 @@ function MetadataRow({ label, value }) {
   );
 }
 
+function ValidationBlock({ validation }) {
+  const warnings = validation?.warnings || [];
+  const errors = validation?.errors || [];
+  return (
+    <div className="rounded-2xl bg-black/20 light:bg-slate-100 border border-white/5 p-5">
+      <p className="text-base font-semibold text-theme-text-primary">
+        Validation
+      </p>
+      <div className="mt-3 flex flex-col gap-y-2 text-sm">
+        <p className={validation?.valid ? "text-emerald-500" : "text-red-500"}>
+          {validation?.valid ? "Validated" : "Validation failed"}
+        </p>
+        {warnings.length > 0 ? (
+          <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-3 text-amber-500">
+            {warnings.map((warning) => (
+              <p key={warning}>{warning}</p>
+            ))}
+          </div>
+        ) : null}
+        {errors.length > 0 ? (
+          <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-3 text-red-500">
+            {errors.map((error) => (
+              <p key={error}>{error}</p>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 export default function LocalSkillDetail() {
   const { slug } = useParams();
   const [loading, setLoading] = useState(true);
   const [skill, setSkill] = useState(null);
   const [error, setError] = useState(null);
+  const [installing, setInstalling] = useState(false);
+  const [bridging, setBridging] = useState(false);
+
+  async function load() {
+    setLoading(true);
+    const result = await SkillStore.get(slug);
+    if (result.success) {
+      setSkill(result.skill);
+      setError(null);
+    } else {
+      setSkill(null);
+      setError(result.error || "Failed to load skill.");
+    }
+    setLoading(false);
+  }
 
   useEffect(() => {
-    async function load() {
-      setLoading(true);
-      const result = await SkillStore.get(slug);
-      if (result.success) {
-        setSkill(result.skill);
-        setError(null);
-      } else {
-        setSkill(null);
-        setError(result.error || "Failed to load skill.");
-      }
-      setLoading(false);
-    }
-
     load();
   }, [slug]);
 
@@ -47,6 +88,34 @@ export default function LocalSkillDetail() {
     if (!skill?.content) return;
     setEventDelegatorForCodeSnippets();
   }, [skill]);
+
+  async function installSkill() {
+    setInstalling(true);
+    const result = await SkillStore.install(slug);
+    if (result.success) {
+      showToast("Skill installed successfully.", "success");
+      setSkill(result.skill);
+    } else {
+      showToast(`Failed to install skill. ${result.error}`, "error");
+    }
+    setInstalling(false);
+  }
+
+  async function handoffToAgentImporter() {
+    setBridging(true);
+    const result = await SkillStore.handoffToAgentImporter(slug);
+    if (result.success) {
+      showToast(
+        result.stub
+          ? "Agent importer stub reached. Your teammate can wire the final bridge here."
+          : "Agent importer handoff completed.",
+        "success"
+      );
+    } else {
+      showToast(`Agent handoff failed. ${result.error}`, "error");
+    }
+    setBridging(false);
+  }
 
   return (
     <div className="w-screen h-screen overflow-hidden bg-theme-bg-container flex">
@@ -81,6 +150,57 @@ export default function LocalSkillDetail() {
                 <p className="text-sm leading-6 text-theme-text-secondary max-w-3xl">
                   {skill.description}
                 </p>
+                <div className="flex flex-wrap items-center gap-3 pt-2">
+                  <button
+                    type="button"
+                    disabled={
+                      installing || skill.installState?.status !== "available"
+                    }
+                    onClick={installSkill}
+                    className={`inline-flex items-center gap-x-2 text-sm font-medium rounded-lg px-4 py-2 ${
+                      skill.installState?.status !== "available"
+                        ? "bg-emerald-500/15 text-emerald-500 cursor-default"
+                        : "bg-primary-button text-white hover:opacity-90"
+                    }`}
+                  >
+                    {installing ? (
+                      <CircleNotch size={16} className="animate-spin" />
+                    ) : (
+                      <DownloadSimple size={16} />
+                    )}
+                    {skill.installState?.status === "installed-active"
+                      ? "Installed & Active"
+                      : skill.installState?.status === "installed"
+                        ? "Installed"
+                        : "Install skill"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={bridging}
+                    onClick={handoffToAgentImporter}
+                    className="inline-flex items-center gap-x-2 text-sm font-medium rounded-lg px-4 py-2 bg-black/30 light:bg-slate-100 text-theme-text-primary hover:bg-black/50 light:hover:bg-slate-200"
+                  >
+                    {bridging ? (
+                      <CircleNotch size={16} className="animate-spin" />
+                    ) : (
+                      <ArrowsClockwise size={16} />
+                    )}
+                    Hand off to Agent importer
+                  </button>
+                  {skill.uploadedAt ? (
+                    <span className="text-xs text-theme-text-secondary font-mono">
+                      Uploaded {new Date(skill.uploadedAt).toLocaleString()}
+                    </span>
+                  ) : null}
+                  {skill.installState?.installedAt ? (
+                    <span className="text-xs text-theme-text-secondary font-mono">
+                      Installed{" "}
+                      {new Date(
+                        skill.installState.installedAt
+                      ).toLocaleString()}
+                    </span>
+                  ) : null}
+                </div>
                 <div className="flex flex-wrap gap-2 pt-2">
                   {(skill.tags || []).map((tag) => (
                     <span
@@ -95,6 +215,16 @@ export default function LocalSkillDetail() {
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-6">
                 <div className="lg:col-span-2 flex flex-col gap-y-4">
+                  {skill.coverImagePath ? (
+                    <div className="rounded-2xl overflow-hidden border border-white/5 bg-black/20 light:bg-slate-100">
+                      <img
+                        src={skill.coverImagePath}
+                        alt={skill.title}
+                        className="w-full max-h-[280px] object-cover"
+                      />
+                    </div>
+                  ) : null}
+                  <ValidationBlock validation={skill.validation} />
                   <div className="rounded-2xl bg-black/20 light:bg-slate-100 border border-white/5 p-5">
                     <div className="flex items-center gap-x-2 mb-4">
                       <FileText
@@ -124,9 +254,41 @@ export default function LocalSkillDetail() {
                     value={skill.version || "unversioned"}
                   />
                   <MetadataRow
-                    label="Source Path"
-                    value={skill.sourcePath || "local seeded content"}
+                    label="Author"
+                    value={
+                      skill.authorUrl
+                        ? `${skill.author} (${skill.authorUrl})`
+                        : skill.author || "Unknown"
+                    }
                   />
+                  <MetadataRow
+                    label="Updated"
+                    value={
+                      skill.updatedAt
+                        ? new Date(skill.updatedAt).toLocaleString()
+                        : "Unknown"
+                    }
+                  />
+                  <MetadataRow
+                    label="Source"
+                    value={`${skill.sourceType || "seeded"} · ${skill.sourcePath || "local content"}`}
+                  />
+                  <MetadataRow
+                    label="Agent Bridge"
+                    value={skill.agentBridge?.message || "Not available"}
+                  />
+                  {!skill.validation?.capabilities?.hasAgentFiles ? (
+                    <div className="rounded-2xl bg-amber-500/10 border border-amber-500/20 p-4 text-amber-500 text-sm leading-6">
+                      <div className="flex items-center gap-2 mb-1">
+                        <WarningCircle size={16} />
+                        <span>Agent files not complete</span>
+                      </div>
+                      <p>
+                        The preview flow is working, but this package does not
+                        yet include the full Agent import payload.
+                      </p>
+                    </div>
+                  ) : null}
                   <div className="rounded-2xl bg-black/20 light:bg-slate-100 border border-white/5 p-5">
                     <p className="text-base font-semibold text-theme-text-primary">
                       Files
@@ -137,7 +299,7 @@ export default function LocalSkillDetail() {
                           key={file.name}
                           className="flex items-center justify-between rounded-lg bg-black/20 light:bg-white px-3 py-2 text-sm"
                         >
-                          <span className="text-theme-text-primary">
+                          <span className="text-theme-text-primary break-all">
                             {file.name}
                           </span>
                           <span className="text-theme-text-secondary font-mono text-xs">

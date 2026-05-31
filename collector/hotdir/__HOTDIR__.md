@@ -1,3 +1,3 @@
-### What is the "Hot directory"
+### 什么是 "Hot directory" (热目录)
 
-This is a pre-set file location that documents will be written to when uploaded by AnythingLLM. There is really no need to touch it.
+这是一个预设的文件位置，AnythingLLM 上传的文档将被写入此处。实际上不需要对这个目录做任何手动修改。

@@ -5,9 +5,12 @@
   "description": "Generate or edit raster images for project assets, mockups, and visual exploration.",
   "summary": "Seeded local sample skill for validating the store and detail page flow.",
   "author": "OpenAI Codex",
+  "authorUrl": "https://openai.com",
   "version": "seed-1",
   "tags": ["images", "design", "generation"],
   "featured": true,
+  "updatedAt": "2026-05-27T12:00:00.000Z",
+  "coverImage": "cover.svg",
   "entryFile": "SKILL.md",
   "sourcePath": "C:/Users/Charming/.codex/skills/.system/imagegen"
 }

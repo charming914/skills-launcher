@@ -1,0 +1,21 @@
+{
+  "hubId": "skill-installer",
+  "name": "skill-installer",
+  "active": false,
+  "description": "Install Codex skills from curated sources or repositories into a local skills directory.",
+  "setup_args": {},
+  "entrypoint": {
+    "params": {
+      "skillName": {
+        "type": "string",
+        "description": "Name of the skill to install."
+      }
+    }
+  },
+  "examples": [
+    {
+      "prompt": "Install a curated skill",
+      "call": "{\"skillName\":\"example-skill\"}"
+    }
+  ]
+}
