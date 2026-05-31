@@ -1,0 +1,21 @@
+{
+  "hubId": "example-local-skill",
+  "name": "example-local-skill",
+  "active": false,
+  "description": "Starter plugin manifest for a local non-MCP skill package.",
+  "setup_args": {},
+  "entrypoint": {
+    "params": {
+      "input": {
+        "type": "string",
+        "description": "Primary input for this skill."
+      }
+    }
+  },
+  "examples": [
+    {
+      "prompt": "Run the example local skill",
+      "call": "{\"input\":\"example\"}"
+    }
+  ]
+}

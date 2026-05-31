@@ -1,45 +1,43 @@
-# Native models used by AnythingLLM
+# AnythingLLM 使用的本地模型
 
-This folder is specifically created as a local cache and storage folder that is used for native models that can run on a CPU.
+这个文件夹被专门用于本地缓存和存储可以在 CPU 上运行的本地模型。
 
-Currently, AnythingLLM uses this folder for the following parts of the application.
+目前，AnythingLLM 将此文件夹用于应用程序的以下部分：
 
-## Embedding
-When your embedding engine preference is `native` we will use the ONNX **all-MiniLM-L6-v2** model built by [Xenova on HuggingFace.co](https://huggingface.co/Xenova/all-MiniLM-L6-v2). This model is a quantized and WASM version of the popular [all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2) which produces a 384-dimension vector.
+## 嵌入 (Embedding)
+当您偏好的嵌入引擎为 `native` 时，我们将使用由 [Xenova 在 HuggingFace.co](https://huggingface.co/Xenova/all-MiniLM-L6-v2) 构建的 ONNX **all-MiniLM-L6-v2** 模型。该模型是流行的 [all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2) 的量化和 WASM 版本，它生成 384 维度的向量。
 
-If you are using the `native` embedding engine your vector database should be configured to accept 384-dimension models if that parameter is directly editable (Pinecone only).
+如果您使用的是 `native` 嵌入引擎，那么如果您的向量数据库参数可直接编辑（仅限 Pinecone），则应将其配置为接受 384 维模型。
 
-## Audio/Video transcription
-AnythingLLM allows you to upload various audio and video formats as source documents. In all cases the audio tracks will be transcribed by a locally running ONNX model **whisper-small** built by [Xenova on HuggingFace.co](https://huggingface.co/Xenova/whisper-small). The model is a smaller version of the OpenAI Whisper model. Given the model runs locally on CPU, larger files will result in longer transcription times.
+## 音频/视频转录
+AnythingLLM 允许您上传各种格式的音频和视频作为源文档。在所有情况下，音轨都将由 [Xenova 在 HuggingFace.co](https://huggingface.co/Xenova/whisper-small) 构建的本地运行的 ONNX 模型 **whisper-small** 进行转录。该模型是 OpenAI Whisper 模型的较小版本。由于模型在 CPU 上本地运行，较大的文件将导致更长的转录时间。
 
-Once transcribed you can embed these transcriptions into your workspace like you would any other file! 
+一旦完成转录，您就可以像其他任何文件一样，将这些转录内容嵌入到您的工作区中！
 
-**Other external model/transcription providers are also live.**
-- [OpenAI Whisper via API key.](https://openai.com/research/whisper)
+**我们同时也支持其他外部模型/转录提供商。**
+- [通过 API key 使用 OpenAI Whisper 接口](https://openai.com/research/whisper)
 
-## Text generation (LLM selection)
+## 文本生成（选择 LLM 模型）
 > [!IMPORTANT]
-> Use of a locally running LLM model is **experimental** and may behave unexpectedly, crash, or not function at all.
-> We suggest for production-use of a local LLM model to use a purpose-built inference server like [LocalAI](https://localai.io) or [LMStudio](https://lmstudio.ai).
+> 使用本地运行的 LLM 模型处于**实验性**阶段，可能会出现意外行为、崩溃或完全无法运行。
+> 为了在生产环境中使用本地 LLM 模型，我们建议使用专门构建的推理服务器，如 [LocalAI](https://localai.io) 或 [LMStudio](https://lmstudio.ai)。
 
 > [!TIP]
-> We recommend at _least_ using a 4-bit or 5-bit quantized model for your LLM. Lower quantization models tend to
-> just output unreadable garbage.
+> 我们建议**至少**使用 4-bit 或 5-bit 的量化 LLM 模型。较低量化的模型往往只能输出无法辨认的乱码。
 
-If you would like to use a local Llama compatible LLM model for chatting you can select any model from this [HuggingFace search filter](https://huggingface.co/models?pipeline_tag=text-generation&library=gguf&other=text-generation-inference&sort=trending)
+如果您想使用兼容 Llama 的本地 LLM 模型进行聊天，可以从这个 [HuggingFace 搜索过滤器](https://huggingface.co/models?pipeline_tag=text-generation&library=gguf&other=text-generation-inference&sort=trending)中选择任何模型。
 
-**Requirements**
-- Model must be in the latest `GGUF` format
-- Model should be compatible with latest `llama.cpp`
-- You should have the proper RAM to run such a model. Requirement depends on model size.
+**要求**
+- 模型必须采用最新的 `GGUF` 格式
+- 模型应兼容最新的 `llama.cpp`
+- 您应具备足够的 RAM（内存）来运行该模型。具体要求取决于模型大小。
 
-### Where do I put my GGUF model?
+### 我应该把 GGUF 模型放在哪里？
 > [!IMPORTANT]
-> If running in Docker you should be running the container to a mounted storage location on the host machine so you
-> can update the storage files directly without having to re-download or re-build your docker container. [See suggested Docker config](../../../README.md#recommended-usage-with-docker-easy)
+> 如果在 Docker 中运行，您应该通过挂载存储卷将容器目录映射到宿主机，这样您就可以直接更新存储文件，而无需重新下载或重新构建您的 Docker 容器。[请参阅推荐的 Docker 配置](../../../README.md#recommended-usage-with-docker-easy)
 
 > [!NOTE]
-> `/server/storage/models/downloaded` is the default location that your model files should be at. 
-> Your storage directory may differ if you changed the STORAGE_DIR environment variable.
+> `/server/storage/models/downloaded` 是您的模型文件应该存放的默认路径。
+> 如果您更改了 STORAGE_DIR 环境变量，您的存储目录可能会有所不同。
 
-All local models you want to have available for LLM selection should be placed in the `server/storage/models/downloaded` folder. Only `.gguf` files will be allowed to be selected from the UI.
+您想在 UI 中作为 LLM 可选模型的所有本地模型，都应放置在 `server/storage/models/downloaded` 文件夹中。UI 中只会允许选择 `.gguf` 格式的文件。

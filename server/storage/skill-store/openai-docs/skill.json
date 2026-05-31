@@ -5,9 +5,12 @@
   "description": "Use official OpenAI documentation and latest guidance when building with OpenAI APIs and products.",
   "summary": "Seeded local sample skill focused on docs lookup and model guidance.",
   "author": "OpenAI Codex",
+  "authorUrl": "https://openai.com",
   "version": "seed-1",
   "tags": ["docs", "api", "openai"],
   "featured": true,
+  "updatedAt": "2026-05-27T12:15:00.000Z",
+  "coverImage": "cover.svg",
   "entryFile": "SKILL.md",
   "sourcePath": "C:/Users/Charming/.codex/skills/.system/openai-docs"
 }

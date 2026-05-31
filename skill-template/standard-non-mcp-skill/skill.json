@@ -1,0 +1,16 @@
+{
+  "slug": "example-local-skill",
+  "name": "example-local-skill",
+  "title": "Example Local Skill",
+  "description": "A starter template for the local non-MCP SKILL Store upload flow.",
+  "summary": "Copy this folder, replace placeholders, then zip it for upload.",
+  "author": "Your Team",
+  "authorUrl": "",
+  "version": "0.1.0",
+  "tags": ["template", "local", "non-mcp"],
+  "featured": false,
+  "updatedAt": "2026-05-31T00:00:00.000Z",
+  "coverImage": "cover.svg",
+  "entryFile": "SKILL.md",
+  "sourcePath": "local-template://standard-non-mcp-skill"
+}
