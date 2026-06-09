@@ -62,7 +62,10 @@ function skillStoreEndpoints(app) {
     [validatedRequest, flexUserRoleValid([ROLES.admin])],
     async (request, response) => {
       try {
-        const skill = SkillStore.get(String(request.params.slug || ""));
+        // Use getWithImport to attach the latest import record to the detail response
+        const skill = await SkillStore.getWithImport(
+          String(request.params.slug || "")
+        );
         if (!skill) {
           response.status(404).json({
             success: false,
@@ -146,8 +149,31 @@ function skillStoreEndpoints(app) {
     [validatedRequest, flexUserRoleValid([ROLES.admin])],
     async (request, response) => {
       try {
+        const { slug, workspaceId } = reqBody(request);
+        const result = await SkillStore.handoffToAgentImporter(
+          String(slug || ""),
+          { workspaceId: workspaceId || null }
+        );
+
+        // Always return 200 so frontend can distinguish success/failure via payload.success
+        response.status(200).json(result);
+      } catch (error) {
+        console.error(error);
+        response.status(500).json({
+          success: false,
+          error: error.message,
+        });
+      }
+    }
+  );
+
+  app.post(
+    "/skills/store/approve",
+    [validatedRequest, flexUserRoleValid([ROLES.admin])],
+    async (request, response) => {
+      try {
         const { slug } = reqBody(request);
-        const result = SkillStore.handoffToAgentImporter(String(slug || ""));
+        const result = await SkillStore.approve(String(slug || ""));
         if (!result.success) {
           response.status(400).json(result);
           return;
@@ -160,6 +186,76 @@ function skillStoreEndpoints(app) {
           success: false,
           error: error.message,
         });
+      }
+    }
+  );
+
+  app.post(
+    "/skills/store/:slug/complete",
+    [validatedRequest, flexUserRoleValid([ROLES.admin])],
+    async (request, response) => {
+      try {
+        const slug = String(request.params.slug || "");
+        const { targets } = reqBody(request);
+        const result = await SkillStore.completeSkill(
+          slug,
+          Array.isArray(targets) ? targets : null
+        );
+        // Always 200 — frontend checks payload.success and generated[].status
+        response.status(200).json(result);
+      } catch (error) {
+        console.error(error);
+        response.status(500).json({ success: false, error: error.message });
+      }
+    }
+  );
+
+  app.get(
+    "/skills/store/:slug/download",
+    [validatedRequest, flexUserRoleValid([ROLES.admin])],
+    async (request, response) => {
+      let zipPath = null;
+      try {
+        const slug = String(request.params.slug || "");
+        const result = SkillStore.downloadPackage(slug);
+        if (!result.success) {
+          response.status(result.completeness ? 409 : 404).json({
+            success: false,
+            error: result.error,
+          });
+          return;
+        }
+
+        zipPath = result.zipPath;
+        response.setHeader("Content-Type", "application/zip");
+        response.setHeader(
+          "Content-Disposition",
+          `attachment; filename="${slug}.zip"`
+        );
+        response.sendFile(zipPath, {}, (err) => {
+          if (zipPath) {
+            try {
+              fs.unlinkSync(zipPath);
+            } catch {
+              // ignore cleanup error
+            }
+          }
+          if (err && !response.headersSent) {
+            console.error("[SkillStore] Failed to stream zip", err);
+          }
+        });
+      } catch (error) {
+        console.error(error);
+        if (zipPath) {
+          try {
+            fs.unlinkSync(zipPath);
+          } catch {
+            // ignore
+          }
+        }
+        if (!response.headersSent) {
+          response.status(500).json({ success: false, error: error.message });
+        }
       }
     }
   );

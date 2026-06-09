@@ -15,6 +15,16 @@ import {
   WarningCircle,
 } from "@phosphor-icons/react";
 
+/** Import phase labels shown during the two-step process */
+const IMPORT_PHASES = [
+  "上传与校验中…",
+  "识别 Skill 清单…",
+  "检测运行环境…",
+  "解析权限申请…",
+  "注册到 Agent…",
+  "写入对话报告…",
+];
+
 function installLabel(status) {
   switch (status) {
     case "installed-active":
@@ -39,7 +49,8 @@ function validationLabel(skill) {
   return "Validated";
 }
 
-function SkillUploadPanel({ uploading, onDrop }) {
+function SkillUploadPanel({ uploadPhase, onDrop }) {
+  const uploading = uploadPhase !== null;
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: (acceptedFiles) => onDrop(acceptedFiles),
     accept: {
@@ -47,12 +58,17 @@ function SkillUploadPanel({ uploading, onDrop }) {
       "application/x-zip-compressed": [".zip"],
     },
     multiple: false,
+    disabled: uploading,
   });
 
   return (
     <div
       {...getRootProps()}
-      className={`mt-6 rounded-3xl border border-dashed px-5 py-6 transition-all cursor-pointer ${
+      className={`mt-6 rounded-3xl border border-dashed px-5 py-6 transition-all ${
+        uploading
+          ? "cursor-not-allowed opacity-70"
+          : "cursor-pointer"
+      } ${
         isDragActive
           ? "border-primary-button bg-primary-button/10"
           : "border-white/10 light:border-slate-300 bg-black/20 light:bg-slate-100"
@@ -73,15 +89,20 @@ function SkillUploadPanel({ uploading, onDrop }) {
               Drop a skill zip here
             </p>
             <p className="text-sm text-theme-text-secondary leading-6 mt-1 max-w-2xl">
-              This week&apos;s flow stages a non-MCP skill package, validates
-              the local structure, and auto-generates the detail page. Upload a
-              single <code className="font-mono text-xs">.zip</code> containing
-              at least <code className="font-mono text-xs">SKILL.md</code>.
+              上传非 MCP skill 包（.zip），系统将自动识别、检测环境、
+              解析权限并注册到 Agent 插件系统。至少包含{" "}
+              <code className="font-mono text-xs">SKILL.md</code>。
             </p>
           </div>
         </div>
-        <div className="text-sm text-theme-text-secondary">
-          {uploading ? "Uploading and validating..." : "Click or drag a zip"}
+        <div className="text-sm text-theme-text-secondary text-right min-w-[140px]">
+          {uploading ? (
+            <span className="text-primary-button font-medium">
+              {uploadPhase}
+            </span>
+          ) : (
+            "Click or drag a zip"
+          )}
         </div>
       </div>
     </div>
@@ -185,7 +206,7 @@ function SkillCard({ skill, onInstall, installing }) {
 export default function LocalSkillStore() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
+  const [uploadPhase, setUploadPhase] = useState(null); // null = idle, string = current phase label
   const [installingSlug, setInstallingSlug] = useState(null);
   const [query, setQuery] = useState("");
   const [skills, setSkills] = useState([]);
@@ -213,23 +234,52 @@ export default function LocalSkillStore() {
     setInstallingSlug(null);
   }
 
+  /**
+   * Two-phase upload:
+   *   Phase 1: upload(file) → get slug
+   *   Phase 2: handoffToAgentImporter(slug) → ImportResult
+   *   Always navigate to detail page regardless of import success/failure.
+   */
   async function handleUpload(files = []) {
     const file = files[0];
     if (!file) return;
 
-    setUploading(true);
-    const result = await SkillStore.upload(file);
-    if (result.success) {
-      showToast(
-        "Skill package validated and added to the local store.",
-        "success"
-      );
-      await load();
-      navigate(paths.communityHub.skillDetail(result.slug));
-    } else {
-      showToast(`Skill upload failed. ${result.error}`, "error");
+    // Phase 1 — upload & validate
+    setUploadPhase(IMPORT_PHASES[0]);
+    const uploadResult = await SkillStore.upload(file);
+    if (!uploadResult.success) {
+      showToast(`Skill upload failed. ${uploadResult.error}`, "error");
+      setUploadPhase(null);
+      return;
     }
-    setUploading(false);
+
+    const slug = uploadResult.slug;
+    showToast("上传成功，开始导入…", "info");
+
+    // Phase 2 — import pipeline (cycle through phase labels for UX)
+    let phaseIdx = 1;
+    const phaseTimer = setInterval(() => {
+      phaseIdx = Math.min(phaseIdx + 1, IMPORT_PHASES.length - 1);
+      setUploadPhase(IMPORT_PHASES[phaseIdx]);
+    }, 600);
+
+    const importResult = await SkillStore.handoffToAgentImporter(slug);
+    clearInterval(phaseTimer);
+    setUploadPhase(null);
+
+    if (importResult.success && importResult.payload?.success) {
+      showToast("Skill 导入成功！正在跳转到详情页…", "success");
+    } else {
+      const reason =
+        importResult.payload?.failureReason ||
+        importResult.error ||
+        "导入过程中发生错误";
+      showToast(`导入未完全成功：${reason}`, "warning");
+    }
+
+    await load();
+    // Always navigate to detail page — it shows full import results
+    navigate(paths.communityHub.skillDetail(slug));
   }
 
   const filteredSkills = skills.filter((skill) => {
@@ -257,13 +307,12 @@ export default function LocalSkillStore() {
               Local SKILL Store
             </p>
             <p className="text-sm text-theme-text-secondary max-w-3xl leading-6">
-              This storefront now supports a local staging flow for development:
-              drag in a non-MCP skill zip, validate it, and immediately inspect
-              the generated detail page before the Agent importer is wired.
+              拖入非 MCP skill zip 包，系统自动识别、检测运行环境、
+              分析权限申请并注册到 Agent 插件系统（默认未激活，需在详情页批准）。
             </p>
           </div>
 
-          <SkillUploadPanel uploading={uploading} onDrop={handleUpload} />
+          <SkillUploadPanel uploadPhase={uploadPhase} onDrop={handleUpload} />
 
           <div className="mt-6 mb-5 flex items-center gap-x-3 bg-black/20 light:bg-slate-100 rounded-xl px-4 py-3 border border-white/5">
             <MagnifyingGlass size={18} className="text-theme-text-secondary" />
@@ -278,9 +327,8 @@ export default function LocalSkillStore() {
           <div className="flex items-center gap-2 text-xs text-theme-text-secondary">
             <WarningCircle size={14} />
             <span>
-              The current uploader accepts preview-oriented non-MCP zip
-              packages. Agent import is intentionally left as a backend stub for
-              team handoff.
+              上传 zip 后会自动运行导入流水线（识别 / 环境检测 / 权限 / 注册）。
+              导入完成后前往详情页查看结果并批准启用。
             </span>
           </div>
 

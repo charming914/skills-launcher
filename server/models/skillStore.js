@@ -5,6 +5,13 @@ const { v4: uuidv4 } = require("uuid");
 const AdmZip = require("adm-zip");
 const ImportedPlugin = require("../utils/agents/imported");
 const { isWithin, normalizePath } = require("../utils/files");
+const { SkillImporter } = require("../utils/agents/skillImporter/index");
+const { RunLog } = require("../utils/agents/skillImporter/runLog");
+const {
+  check: checkCompleteness,
+} = require("../utils/agents/skillCompleter/completeness");
+const { recognize } = require("../utils/agents/skillImporter/recognizer");
+const { SkillCompleter } = require("../utils/agents/skillCompleter/index");
 
 const STORE_ROOT = path.resolve(__dirname, "../storage/skill-store");
 const UPLOAD_ROOT = path.resolve(__dirname, "../storage/skill-store-uploads");
@@ -403,6 +410,54 @@ const SkillStore = {
     return detailSkill(skill);
   },
 
+  /**
+   * Get skill detail enriched with the latest import record.
+   * Returns the full skill plus importRecord fields for the detail page.
+   * @param {string} slug
+   * @returns {Promise<object|null>}
+   */
+  getWithImport: async function (slug = "") {
+    const skill = this.get(slug);
+    if (!skill) return null;
+
+    let importRecord = null;
+    try {
+      importRecord = await RunLog.getLatestBySlug(slug);
+    } catch {
+      // non-fatal
+    }
+
+    // Compute completeness report from current disk state
+    let completeness = null;
+    try {
+      const skillDir = path.resolve(STORE_ROOT, normalizePath(slug));
+      const rawJson = safeReadJson(path.resolve(skillDir, "skill.json")) || {};
+      const manifest = recognize(skillDir, rawJson);
+      completeness = checkCompleteness(manifest, rawJson);
+    } catch {
+      // non-fatal — detail page degrades gracefully
+    }
+
+    return {
+      ...skill,
+      completeness,
+      importRecord: importRecord
+        ? {
+            id: importRecord.id,
+            status: importRecord.status,
+            stages: importRecord.stages,
+            envResult: importRecord.envResult,
+            permissionRequest: importRecord.permissionRequest,
+            conversationRef: importRecord.conversationRef,
+            installed: importRecord.installed,
+            active: importRecord.active,
+            failureReason: importRecord.failureReason,
+            createdAt: importRecord.createdAt,
+          }
+        : null,
+    };
+  },
+
   install: function (slug = "") {
     if (!slug) return { success: false, error: "Skill slug is required." };
     const sourceDir = path.resolve(STORE_ROOT, normalizePath(slug));
@@ -531,28 +586,173 @@ const SkillStore = {
     }
   },
 
-  handoffToAgentImporter: function (slug = "") {
+  /**
+   * Run the Skill import pipeline (replaces the previous stub).
+   * Returns { success, payload: ImportResult }.
+   *
+   * Backward-compat: payload always includes the original stub fields
+   * (slug, title, sourceType, sourcePath, entryFile, files, validation, detailRoute)
+   * plus new fields (manifest, envResult, permissionRequest, etc.).
+   *
+   * @param {string} slug
+   * @param {object} opts
+   * @param {string|null} opts.workspaceId
+   * @returns {Promise<object>}
+   */
+  handoffToAgentImporter: async function (slug = "", opts = {}) {
     const skill = this.get(slug);
     if (!skill) return { success: false, error: "Skill not found." };
 
-    const payload = {
-      slug: skill.slug,
-      title: skill.title,
-      sourceType: skill.sourceType,
-      sourcePath: skill.sourcePath,
-      entryFile: skill.entryFile,
-      files: skill.files,
-      validation: skill.validation,
-      detailRoute: `${SKILL_DETAIL_ROUTE}/${skill.slug}`,
-    };
+    const importResult = await SkillImporter.run(slug, {
+      workspaceId: opts.workspaceId || null,
+      skillStore: this,
+    });
 
     return {
-      success: true,
-      stub: true,
-      message:
-        "Agent importer bridge is still a stub. Replace SkillStore.handoffToAgentImporter() with the final Agent integration.",
-      payload,
+      success: importResult.success,
+      payload: importResult,
     };
+  },
+
+  /**
+   * Run the one-click file completion pipeline.
+   * Only generates files that are missing — never overwrites existing files.
+   *
+   * @param {string} slug
+   * @param {string[]} [targets]  optional list of specific file names to generate
+   * @returns {Promise<{ success: boolean, payload: CompleteResult }>}
+   */
+  completeSkill: async function (slug = "", targets = null) {
+    if (!slug) return { success: false, error: "Skill slug is required." };
+    const skill = this.get(slug);
+    if (!skill) return { success: false, error: "Skill not found." };
+
+    const result = await SkillCompleter.run(slug, targets || null);
+
+    // Persist rescanned permissionRequest to the latest import record
+    // so the detail page shows updated permissions after handler.js generation.
+    if (result.permissionRequest) {
+      try {
+        const importRecord = await RunLog.getLatestBySlug(slug);
+        if (importRecord) {
+          await RunLog.updateApproval(importRecord.id, {
+            permissionRequest: result.permissionRequest,
+          });
+        }
+      } catch {
+        // non-fatal
+      }
+    }
+
+    return { success: result.success, payload: result };
+  },
+
+  /**
+   * Build a zip archive of the skill directory and return its absolute path.
+   * Caller is responsible for deleting the temp file after streaming.
+   *
+   * @param {string} slug
+   * @returns {{ success: boolean, zipPath?: string, error?: string, completeness?: object }}
+   */
+  downloadPackage: function (slug = "") {
+    if (!slug) return { success: false, error: "Skill slug is required." };
+    const skillDir = path.resolve(STORE_ROOT, normalizePath(slug));
+    if (!isWithin(STORE_ROOT, skillDir) || !fs.existsSync(skillDir)) {
+      return { success: false, error: "Skill not found." };
+    }
+
+    // Re-check completeness synchronously (guard at endpoint level too)
+    let completeness = null;
+    try {
+      const rawJson = safeReadJson(path.resolve(skillDir, "skill.json")) || {};
+      const manifest = recognize(skillDir, rawJson);
+      completeness = checkCompleteness(manifest, rawJson);
+    } catch {
+      // non-fatal — allow download even if check fails
+    }
+
+    if (completeness && !completeness.downloadable) {
+      return {
+        success: false,
+        error: "Skill is missing required files and cannot be downloaded.",
+        completeness,
+      };
+    }
+
+    // Build zip in-memory using AdmZip (already a project dependency)
+    const zip = new AdmZip();
+    const addDir = (dirpath) => {
+      for (const entry of fs.readdirSync(dirpath)) {
+        const abs = path.resolve(dirpath, entry);
+        const rel = path.relative(skillDir, abs).replace(/\\/g, "/");
+        // Safety: skip anything outside skillDir
+        if (!isWithin(skillDir, abs)) continue;
+        const stat = fs.lstatSync(abs);
+        if (stat.isDirectory()) {
+          addDir(abs);
+        } else {
+          zip.addLocalFile(
+            abs,
+            path.dirname(rel) === "." ? "" : path.dirname(rel)
+          );
+        }
+      }
+    };
+    addDir(skillDir);
+
+    const tmpPath = path.resolve(STAGING_ROOT, `${slug}-${Date.now()}.zip`);
+    ensureDir(STAGING_ROOT);
+    zip.writeZip(tmpPath);
+
+    return { success: true, zipPath: tmpPath };
+  },
+
+  /**
+   * Approve and activate an installed skill.
+   * Sets plugin.json active=true and updates the latest import record.
+   *
+   * @param {string} slug
+   * @returns {Promise<object>} { success, skill, error? }
+   */
+  approve: async function (slug = "") {
+    if (!slug) return { success: false, error: "Skill slug is required." };
+
+    const skill = this.get(slug);
+    if (!skill) return { success: false, error: "Skill not found." };
+
+    // Set active=true in agent-skills plugin.json
+    const updated = ImportedPlugin.updateImportedPlugin(slug, { active: true });
+    if (!updated) {
+      return {
+        success: false,
+        error: "Skill is not installed. Please import it first.",
+      };
+    }
+
+    // Update the latest import record's permissionRequest decision
+    try {
+      const importRecord = await RunLog.getLatestBySlug(slug);
+      if (importRecord) {
+        const updatedPerms = {
+          ...importRecord.permissionRequest,
+          decision: "approved",
+          decidedAt: new Date().toISOString(),
+        };
+        await RunLog.updateApproval(importRecord.id, {
+          active: true,
+          installed: true,
+          permissionRequest: updatedPerms,
+        });
+      }
+    } catch (err) {
+      console.warn(
+        "[SkillStore.approve] Failed to update import record:",
+        err.message
+      );
+      // Non-fatal — the plugin is activated regardless
+    }
+
+    return { success: true, skill: this.get(slug) };
   },
 };
 

@@ -486,3 +486,22 @@ model model_router_rules {
   @@index([router_id])
   @@index([router_id, enabled, priority])
 }
+
+// Skill import pipeline records — one row per handoff invocation.
+// JSON columns stored as String (SQLite limitation); model layer parses them.
+model skill_imports {
+  id                Int      @id @default(autoincrement())
+  slug              String
+  status            String   // 'success' | 'failed'
+  stages            String   // JSON: ImportStage[]
+  envResult         String   // JSON: EnvResult
+  permissionRequest String   // JSON: PermissionRequest
+  conversationRef   String?  // JSON: { workspaceSlug, threadSlug, threadId } | null
+  installed         Boolean  @default(false)
+  active            Boolean  @default(false)
+  failureReason     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([slug])
+}
