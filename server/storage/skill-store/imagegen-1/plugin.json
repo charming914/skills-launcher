@@ -1,0 +1,21 @@
+{
+  "hubId": "imagegen",
+  "name": "imagegen",
+  "active": false,
+  "description": "Generate or edit raster images for project assets, mockups, and visual exploration.",
+  "setup_args": {},
+  "entrypoint": {
+    "params": {
+      "task": {
+        "type": "string",
+        "description": "Describe the image generation or editing request."
+      }
+    }
+  },
+  "examples": [
+    {
+      "prompt": "Create a product mockup with a warm background",
+      "call": "{\"task\":\"Create a product mockup with a warm background\"}"
+    }
+  ]
+}

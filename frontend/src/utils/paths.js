@@ -231,6 +231,9 @@ export default {
     skillDetail: (slug) => {
       return `/settings/community-hub/skills/${slug}`;
     },
+    skillChat: (slug) => {
+      return `/settings/community-hub/skills/${slug}/chat`;
+    },
     authentication: () => {
       return `/settings/community-hub/authentication`;
     },

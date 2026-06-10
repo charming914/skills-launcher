@@ -352,32 +352,43 @@ const router = createBrowserRouter([
           return { element: <AdminRoute Component={CommunityHubTrending} /> };
         },
       },
-        {
-          path: "/settings/community-hub/skills",
-          lazy: async () => {
-            const { default: CommunityHubSkillStore } = await import(
-              "@/pages/GeneralSettings/CommunityHub/SkillStore"
-            );
-            return {
-              element: <AdminRoute Component={CommunityHubSkillStore} />,
-            };
-          },
+      {
+        path: "/settings/community-hub/skills",
+        lazy: async () => {
+          const { default: CommunityHubSkillStore } = await import(
+            "@/pages/GeneralSettings/CommunityHub/SkillStore"
+          );
+          return {
+            element: <AdminRoute Component={CommunityHubSkillStore} />,
+          };
         },
-        {
-          path: "/settings/community-hub/skills/:slug",
-          lazy: async () => {
-            const { default: CommunityHubSkillDetail } = await import(
-              "@/pages/GeneralSettings/CommunityHub/SkillDetail"
-            );
-            return {
-              element: <AdminRoute Component={CommunityHubSkillDetail} />,
-            };
-          },
+      },
+      {
+        path: "/settings/community-hub/skills/:slug/chat",
+        lazy: async () => {
+          const { default: CommunityHubSkillChat } = await import(
+            "@/pages/GeneralSettings/CommunityHub/SkillChat"
+          );
+          return {
+            element: <AdminRoute Component={CommunityHubSkillChat} />,
+          };
         },
-        {
-          path: "/settings/community-hub/authentication",
-          lazy: async () => {
-            const { default: CommunityHubAuthentication } = await import(
+      },
+      {
+        path: "/settings/community-hub/skills/:slug",
+        lazy: async () => {
+          const { default: CommunityHubSkillDetail } = await import(
+            "@/pages/GeneralSettings/CommunityHub/SkillDetail"
+          );
+          return {
+            element: <AdminRoute Component={CommunityHubSkillDetail} />,
+          };
+        },
+      },
+      {
+        path: "/settings/community-hub/authentication",
+        lazy: async () => {
+          const { default: CommunityHubAuthentication } = await import(
             "@/pages/GeneralSettings/CommunityHub/Authentication"
           );
           return {

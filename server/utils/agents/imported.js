@@ -172,7 +172,18 @@ class ImportedPlugin {
   }
 
   plugin(runtimeArgs = {}) {
-    const customFunctions = this.handler.runtime;
+    const customFunctions = this.handler.runtime || {};
+    const runtime = customFunctions.handler || customFunctions.execute;
+    const runtimeHandler = async function (args = {}) {
+      if (!runtime)
+        return `Imported skill "${this.name}" is missing runtime.handler or runtime.execute.`;
+
+      const result = await runtime.call(this, args);
+      if (typeof result === "string") return result;
+      if (result?.output !== undefined) return String(result.output);
+      return JSON.stringify(result ?? null);
+    };
+
     return {
       runtimeArgs,
       name: this.name,
@@ -196,6 +207,7 @@ class ImportedPlugin {
             additionalProperties: false,
           },
           ...customFunctions,
+          handler: runtimeHandler,
         });
       },
     };

@@ -1,0 +1,39 @@
+{
+  "slug": "imagegen-1",
+  "name": "imagegen",
+  "title": "Image Generation",
+  "description": "Generate or edit raster images for project assets, mockups, and visual exploration.",
+  "summary": "Seeded local sample skill for validating the store and detail page flow.",
+  "author": "OpenAI Codex",
+  "authorUrl": "https://openai.com",
+  "version": "seed-1",
+  "tags": [
+    "images",
+    "design",
+    "generation"
+  ],
+  "featured": true,
+  "updatedAt": "2026-05-27T12:00:00.000Z",
+  "uploadedAt": "2026-06-10T09:33:00.417Z",
+  "coverImage": "cover.svg",
+  "entryFile": "SKILL.md",
+  "sourcePath": "C:/Users/Charming/.codex/skills/.system/imagegen",
+  "sourceType": "uploaded-zip",
+  "validation": {
+    "valid": true,
+    "schemaVersion": "local-skill-store/v2",
+    "mode": "preview-only",
+    "errors": [],
+    "warnings": [],
+    "capabilities": {
+      "hasEntryFile": true,
+      "hasCoverImage": true,
+      "hasAgentFiles": true,
+      "containsMcp": false
+    }
+  },
+  "agentBridge": {
+    "status": "ready-for-stub",
+    "message": "Skill package validated. Agent importer handoff is waiting for the integration owner."
+  }
+}

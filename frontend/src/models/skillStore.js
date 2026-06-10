@@ -1,5 +1,7 @@
 import { API_BASE } from "@/utils/constants";
-import { baseHeaders } from "@/utils/request";
+import { baseHeaders, safeJsonParse } from "@/utils/request";
+import { fetchEventSource } from "@microsoft/fetch-event-source";
+import { v4 } from "uuid";
 
 const SkillStore = {
   list: async () => {
@@ -135,6 +137,69 @@ const SkillStore = {
       URL.revokeObjectURL(url);
       return { success: true };
     } catch (error) {
+      console.error(error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
+   * Stream a dedicated single-Skill chat response.
+   * The backend preflights permissions/environment and restricts tools to this skill.
+   * @param {string} slug
+   * @param {string} message
+   * @param {Function} handleChat
+   * @param {{workspaceSlug?: string|null, workspaceId?: string|number|null, sessionId?: string|null}} options
+   */
+  streamChat: async (slug, message, handleChat, options = {}) => {
+    const ctrl = new AbortController();
+
+    try {
+      await fetchEventSource(`${API_BASE}/skills/store/${slug}/stream-chat`, {
+        method: "POST",
+        body: JSON.stringify({
+          message,
+          workspaceSlug: options.workspaceSlug || null,
+          workspaceId: options.workspaceId || null,
+          sessionId: options.sessionId || null,
+        }),
+        headers: baseHeaders(),
+        signal: ctrl.signal,
+        openWhenHidden: true,
+        async onopen(response) {
+          if (response.ok) return;
+
+          handleChat({
+            id: v4(),
+            type: "abort",
+            textResponse: null,
+            sources: [],
+            close: true,
+            error: `Skill chat stream failed. Code ${response.status}`,
+          });
+          ctrl.abort();
+          throw new Error("Invalid status code response.");
+        },
+        async onmessage(msg) {
+          const chatResult = safeJsonParse(msg.data, null);
+          if (chatResult) handleChat(chatResult);
+        },
+        onerror(error) {
+          handleChat({
+            id: v4(),
+            type: "abort",
+            textResponse: null,
+            sources: [],
+            close: true,
+            error: `Skill chat stream failed. ${error.message}`,
+          });
+          ctrl.abort();
+          throw new Error(error.message);
+        },
+      });
+
+      return { success: true };
+    } catch (error) {
+      if (error.name === "AbortError") return { success: false, aborted: true };
       console.error(error);
       return { success: false, error: error.message };
     }

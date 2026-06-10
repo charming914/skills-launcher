@@ -245,6 +245,33 @@ function PermissionBlock({ permissionRequest, onApprove, approving, canApprove }
   );
 }
 
+function ActivationFallbackBlock({ onApprove, approving }) {
+  return (
+    <div className="rounded-2xl bg-emerald-500/10 border border-emerald-500/20 p-5">
+      <div className="flex items-center gap-x-2 mb-2">
+        <ShieldWarning size={18} className="text-emerald-400" />
+        <p className="text-base font-semibold text-theme-text-primary">
+          待批准启用
+        </p>
+      </div>
+      <p className="text-sm leading-6 text-theme-text-secondary mb-4">
+        这个 Skill 已经安装到本地，但还没有启用。确认来源和文件内容可信后，可以批准并启用它。
+      </p>
+      <button
+        type="button"
+        disabled={approving}
+        onClick={onApprove}
+        className={`inline-flex items-center gap-x-2 text-sm font-medium rounded-lg px-4 py-2 w-full justify-center bg-emerald-600 hover:bg-emerald-500 text-white ${
+          approving ? "opacity-70" : ""
+        }`}
+      >
+        {approving ? <CircleNotch size={15} className="animate-spin" /> : null}
+        批准并启用
+      </button>
+    </div>
+  );
+}
+
 function StageStatusDot({ status }) {
   if (status === "success")
     return <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />;
@@ -641,9 +668,9 @@ export default function LocalSkillDetail() {
                     }`}
                   >
                     {isActive
-                      ? "已安装 & 已激活"
+                      ? "已安装并启用"
                       : isInstalled
-                        ? "已安装（未激活）"
+                        ? "已安装（待批准启用）"
                         : "未安装"}
                   </span>
                   {skill.uploadedAt ? (
@@ -773,14 +800,21 @@ export default function LocalSkillDetail() {
 
                 {/* Right column: metadata + files */}
                 <div className="flex flex-col gap-y-4">
+                  {isInstalled && !isActive && !permissionRequest ? (
+                    <ActivationFallbackBlock
+                      onApprove={handleApprove}
+                      approving={approving}
+                    />
+                  ) : null}
+
                   {/* Go-to-chat link when skill is active */}
                   {isActive && (
                     <Link
-                      to="/workspace"
+                      to={paths.communityHub.skillChat(skill.slug)}
                       className="inline-flex items-center gap-x-2 text-sm font-medium rounded-lg px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white justify-center"
                     >
                       <LinkSimple size={15} />
-                      去对话
+                      单独对话
                     </Link>
                   )}
 

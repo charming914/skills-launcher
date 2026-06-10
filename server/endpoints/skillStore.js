@@ -3,12 +3,15 @@ const path = require("path");
 const multer = require("multer");
 const { v4: uuidv4 } = require("uuid");
 const { SkillStore } = require("../models/skillStore");
+const { SkillChat } = require("../utils/agents/skillChat");
 const { validatedRequest } = require("../utils/middleware/validatedRequest");
 const {
   flexUserRoleValid,
   ROLES,
 } = require("../utils/middleware/multiUserProtected");
-const { reqBody } = require("../utils/http");
+const { reqBody, userFromSession, multiUserMode } = require("../utils/http");
+const { writeResponseChunk } = require("../utils/helpers/chat/responses");
+const { User } = require("../models/user");
 
 const skillUploadStorage = multer.diskStorage({
   destination: function (_, __, cb) {
@@ -206,6 +209,81 @@ function skillStoreEndpoints(app) {
       } catch (error) {
         console.error(error);
         response.status(500).json({ success: false, error: error.message });
+      }
+    }
+  );
+
+  app.post(
+    "/skills/store/:slug/stream-chat",
+    [validatedRequest, flexUserRoleValid([ROLES.admin])],
+    async (request, response) => {
+      try {
+        const user = await userFromSession(request, response);
+        const slug = String(request.params.slug || "");
+        const {
+          message,
+          workspaceSlug = null,
+          workspaceId = null,
+          sessionId = null,
+        } = reqBody(request);
+
+        if (typeof message !== "string" || message.trim().length === 0) {
+          response.status(400).json({
+            id: uuidv4(),
+            type: "abort",
+            textResponse: null,
+            sources: [],
+            close: true,
+            error: "Message is empty.",
+          });
+          return;
+        }
+
+        response.setHeader("Cache-Control", "no-cache");
+        response.setHeader("Content-Type", "text/event-stream");
+        response.setHeader("Access-Control-Allow-Origin", "*");
+        response.setHeader("Connection", "keep-alive");
+        response.flushHeaders();
+
+        if (multiUserMode(response) && !(await User.canSendChat(user))) {
+          writeResponseChunk(response, {
+            id: uuidv4(),
+            type: "abort",
+            textResponse: null,
+            sources: [],
+            close: true,
+            error: `You have met your maximum 24 hour chat quota of ${user.dailyMessageLimit} chats. Try again later.`,
+          });
+          response.end();
+          return;
+        }
+
+        await SkillChat.stream({
+          response,
+          slug,
+          message: message.trim(),
+          workspaceSlug,
+          workspaceId,
+          sessionId,
+          user,
+        });
+        response.end();
+      } catch (error) {
+        console.error(error);
+        if (!response.headersSent) {
+          response.status(500).json({ success: false, error: error.message });
+          return;
+        }
+
+        writeResponseChunk(response, {
+          id: uuidv4(),
+          type: "abort",
+          textResponse: null,
+          sources: [],
+          close: true,
+          error: error.message,
+        });
+        response.end();
       }
     }
   );

@@ -25,6 +25,10 @@ import Option from "./MenuOption";
 import { CanViewChatHistoryProvider } from "../CanViewChatHistory";
 import useAppVersion from "@/hooks/useAppVersion";
 
+// Stage 1 cleanup: hide non-essential settings from the sidebar only.
+// Routes, pages, APIs, and feature code remain available for later restoration.
+const SKILL_DEV_SIDEBAR_MODE = true;
+
 export default function SettingsSidebar() {
   const { t } = useTranslation();
   const { logo } = useLogo();
@@ -110,18 +114,23 @@ export default function SettingsSidebar() {
                 <div className="h-auto md:sidebar-items">
                   <div className="flex flex-col gap-y-4 pb-[60px] overflow-y-scroll no-scroll">
                     <SidebarOptions user={user} t={t} />
-                    <div className="h-[1.5px] bg-[#3D4147] mx-3 mt-[14px]" />
-                    <SupportEmail />
-                    <Link
-                      hidden={
-                        user?.hasOwnProperty("role") && user.role !== "admin"
-                      }
-                      to={paths.settings.privacy()}
-                      className="text-theme-text-secondary hover:text-white text-xs leading-[18px] mx-3"
-                    >
-                      {t("settings.privacy")}
-                    </Link>
-                    <AppVersion />
+                    {!SKILL_DEV_SIDEBAR_MODE ? (
+                      <>
+                        <div className="h-[1.5px] bg-[#3D4147] mx-3 mt-[14px]" />
+                        <SupportEmail />
+                        <Link
+                          hidden={
+                            user?.hasOwnProperty("role") &&
+                            user.role !== "admin"
+                          }
+                          to={paths.settings.privacy()}
+                          className="text-theme-text-secondary hover:text-white text-xs leading-[18px] mx-3"
+                        >
+                          {t("settings.privacy")}
+                        </Link>
+                        <AppVersion />
+                      </>
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -161,18 +170,22 @@ export default function SettingsSidebar() {
               <div className="h-auto sidebar-items">
                 <div className="flex flex-col gap-y-2 pb-[60px] overflow-y-scroll no-scroll">
                   <SidebarOptions user={user} t={t} />
-                  <div className="h-[1.5px] bg-[#3D4147] mx-3 mt-[14px]" />
-                  <SupportEmail />
-                  <Link
-                    hidden={
-                      user?.hasOwnProperty("role") && user.role !== "admin"
-                    }
-                    to={paths.settings.privacy()}
-                    className="text-theme-text-secondary hover:text-white hover:light:text-theme-text-primary text-xs leading-[18px] mx-3"
-                  >
-                    {t("settings.privacy")}
-                  </Link>
-                  <AppVersion />
+                  {!SKILL_DEV_SIDEBAR_MODE ? (
+                    <>
+                      <div className="h-[1.5px] bg-[#3D4147] mx-3 mt-[14px]" />
+                      <SupportEmail />
+                      <Link
+                        hidden={
+                          user?.hasOwnProperty("role") && user.role !== "admin"
+                        }
+                        to={paths.settings.privacy()}
+                        className="text-theme-text-secondary hover:text-white hover:light:text-theme-text-primary text-xs leading-[18px] mx-3"
+                      >
+                        {t("settings.privacy")}
+                      </Link>
+                      <AppVersion />
+                    </>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -232,36 +245,42 @@ const SidebarOptions = ({ user = null, t }) => (
               href: paths.settings.vectorDatabase(),
               flex: true,
               roles: ["admin"],
+              hidden: SKILL_DEV_SIDEBAR_MODE,
             },
             {
               btnText: t("settings.embedder"),
               href: paths.settings.embedder.modelPreference(),
               flex: true,
               roles: ["admin"],
+              hidden: SKILL_DEV_SIDEBAR_MODE,
             },
             {
               btnText: t("settings.text-splitting"),
               href: paths.settings.embedder.chunkingPreference(),
               flex: true,
               roles: ["admin"],
+              hidden: SKILL_DEV_SIDEBAR_MODE,
             },
             {
               btnText: t("settings.voice-speech"),
               href: paths.settings.audioPreference(),
               flex: true,
               roles: ["admin"],
+              hidden: SKILL_DEV_SIDEBAR_MODE,
             },
             {
               btnText: t("settings.transcription"),
               href: paths.settings.transcriptionPreference(),
               flex: true,
               roles: ["admin"],
+              hidden: SKILL_DEV_SIDEBAR_MODE,
             },
             {
               btnText: t("settings.model-router"),
               href: paths.settings.modelRouters(),
               flex: true,
               roles: ["admin"],
+              hidden: SKILL_DEV_SIDEBAR_MODE,
             },
           ]}
         />
@@ -274,6 +293,7 @@ const SidebarOptions = ({ user = null, t }) => (
               btnText: t("settings.users"),
               href: paths.settings.users(),
               roles: ["admin", "manager"],
+              hidden: SKILL_DEV_SIDEBAR_MODE,
             },
             {
               btnText: t("settings.workspaces"),
@@ -291,6 +311,7 @@ const SidebarOptions = ({ user = null, t }) => (
               btnText: t("settings.invites"),
               href: paths.settings.invites(),
               roles: ["admin", "manager"],
+              hidden: SKILL_DEV_SIDEBAR_MODE,
             },
             {
               btnText: "Default System Prompt",
@@ -330,24 +351,27 @@ const SidebarOptions = ({ user = null, t }) => (
               href: paths.communityHub.trending(),
               flex: true,
               roles: ["admin"],
+              hidden: SKILL_DEV_SIDEBAR_MODE,
             },
-              {
-                btnText: "SKILL Store",
-                href: paths.communityHub.skills(),
-                flex: true,
-                roles: ["admin"],
-              },
-              {
-                btnText: t("settings.community-hub.your-account"),
-                href: paths.communityHub.authentication(),
-                flex: true,
+            {
+              btnText: "SKILL Store",
+              href: paths.communityHub.skills(),
+              flex: true,
               roles: ["admin"],
+            },
+            {
+              btnText: t("settings.community-hub.your-account"),
+              href: paths.communityHub.authentication(),
+              flex: true,
+              roles: ["admin"],
+              hidden: SKILL_DEV_SIDEBAR_MODE,
             },
             {
               btnText: t("settings.community-hub.import-item"),
               href: paths.communityHub.importItem(),
               flex: true,
               roles: ["admin"],
+              hidden: SKILL_DEV_SIDEBAR_MODE,
             },
           ]}
         />
@@ -361,12 +385,14 @@ const SidebarOptions = ({ user = null, t }) => (
               href: paths.settings.interface(),
               flex: true,
               roles: ["admin", "manager"],
+              hidden: SKILL_DEV_SIDEBAR_MODE,
             },
             {
               btnText: t("settings.branding"),
               href: paths.settings.branding(),
               flex: true,
               roles: ["admin", "manager"],
+              hidden: SKILL_DEV_SIDEBAR_MODE,
             },
             {
               btnText: t("settings.chat"),
@@ -380,6 +406,7 @@ const SidebarOptions = ({ user = null, t }) => (
           btnText={t("settings.channels")}
           icon={<Plugs className="h-5 w-5 flex-shrink-0" />}
           user={user}
+          hidden={SKILL_DEV_SIDEBAR_MODE}
           childOptions={[
             {
               btnText: t("settings.available-channels.telegram"),
@@ -395,7 +422,7 @@ const SidebarOptions = ({ user = null, t }) => (
           user={user}
           childOptions={[
             {
-              hidden: !canViewChatHistory,
+              hidden: SKILL_DEV_SIDEBAR_MODE || !canViewChatHistory,
               btnText: t("settings.embeds"),
               href: paths.settings.embedChatWidgets(),
               flex: true,
@@ -411,31 +438,35 @@ const SidebarOptions = ({ user = null, t }) => (
               btnText: t("settings.scheduled-jobs"),
               href: paths.settings.scheduledJobs(),
               flex: true,
-              hidden: !!user,
+              hidden: SKILL_DEV_SIDEBAR_MODE || !!user,
             },
             {
               btnText: t("settings.api-keys"),
               href: paths.settings.apiKeys(),
               flex: true,
               roles: ["admin"],
+              hidden: SKILL_DEV_SIDEBAR_MODE,
             },
             {
               btnText: t("settings.system-prompt-variables"),
               href: paths.settings.systemPromptVariables(),
               flex: true,
               roles: ["admin"],
+              hidden: SKILL_DEV_SIDEBAR_MODE,
             },
             {
               btnText: t("settings.browser-extension"),
               href: paths.settings.browserExtension(),
               flex: true,
               roles: ["admin", "manager"],
+              hidden: SKILL_DEV_SIDEBAR_MODE,
             },
             {
               btnText: t("settings.mobile-app"),
               href: paths.settings.mobile(),
               flex: true,
               roles: ["admin"],
+              hidden: SKILL_DEV_SIDEBAR_MODE,
             },
           ]}
         />
@@ -446,7 +477,7 @@ const SidebarOptions = ({ user = null, t }) => (
           user={user}
           flex={true}
           roles={["admin", "manager"]}
-          hidden={user?.role}
+          hidden={SKILL_DEV_SIDEBAR_MODE || user?.role}
         />
         <HoldToReveal key="exp_features">
           <Option
@@ -456,6 +487,7 @@ const SidebarOptions = ({ user = null, t }) => (
             user={user}
             flex={true}
             roles={["admin"]}
+            hidden={SKILL_DEV_SIDEBAR_MODE}
           />
         </HoldToReveal>
       </>
